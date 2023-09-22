@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
+	"github.com/dgrijalva/jwt-go"
 
 	"github.com/agustfricke/super-auth-go/config"
 	"github.com/agustfricke/super-auth-go/database"
@@ -118,10 +119,50 @@ func SignUp(c *fiber.Ctx) error {
 }
 
 func VerifyEmail(c *fiber.Ctx) error {
-  // obtener token desde url
-  // si esta en la url activar la cuenta
-  // retornar html de exito
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"status": "success"})
+	tokenString := c.Params("token")
+
+	if tokenString == "" {
+		return c.Status(fiber.StatusBadRequest).SendString("Token o ID faltante")
+	}
+
+	tokenKey := []byte(config.Config("JWT_SECRET"))
+	claims := jwt.MapClaims{}
+
+	_, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		return tokenKey, nil
+	})
+
+	if err != nil {
+		if err == jwt.ErrSignatureInvalid {
+			return c.Status(fiber.StatusUnauthorized).SendString("Token JWT no válido")
+		}
+		return c.Status(fiber.StatusBadRequest).SendString("Token JWT no válido")
+	}
+
+	userID, ok := claims["sub"].(float64)
+	if !ok {
+		return c.Status(fiber.StatusBadRequest).SendString("ID de usuario no encontrado en el token")
+	}
+
+  fmt.Println(userID)
+
+	db := database.DB
+	var user models.User
+
+	if err := db.First(&user, userID).Error; err != nil {
+		return c.Status(404).JSON(err)
+	}
+
+  user.Verified = new(bool)
+  *user.Verified = true
+
+	if err := db.Save(&user).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Error al guardar los cambios en el usuario")
+	}
+
+	return c.Render("success_verify", fiber.Map{
+    "user": user,
+  })
 }
 
 func SignIn(c *fiber.Ctx) error {
