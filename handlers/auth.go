@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/smtp"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -69,6 +70,10 @@ func SignUpForm(c *fiber.Ctx) error {
   return c.Render("signup_form", fiber.Map{})
 }
 
+func SignInForm(c *fiber.Ctx) error {
+  return c.Render("signin_form", fiber.Map{})
+}
+
 
 func SignUp(c *fiber.Ctx) error {
   db := database.DB
@@ -91,19 +96,19 @@ func SignUp(c *fiber.Ctx) error {
 
   user := models.User{Name: name, Email: email, Password: string(hashedPassword)}
 	if err := db.Create(&user).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString("Error creating task in database")
+		return c.Status(fiber.StatusInternalServerError).SendString("Error creating user in database")
 	}
 
 	tokenByte := jwt.New(jwt.SigningMethodHS256)
 
 	now := time.Now().UTC()
 	claims := tokenByte.Claims.(jwt.MapClaims)
-expDuration := time.Hour * 24
+  expDuration := time.Hour * 24
 
-claims["sub"] = user.ID
-claims["exp"] = now.Add(expDuration).Unix()
-claims["iat"] = now.Unix()
-claims["nbf"] = now.Unix()
+  claims["sub"] = user.ID
+  claims["exp"] = now.Add(expDuration).Unix()
+  claims["iat"] = now.Unix()
+  claims["nbf"] = now.Unix()
 
 	tokenString, err := tokenByte.SignedString([]byte(config.Config("JWT_SECRET")))
 
@@ -125,7 +130,6 @@ func VerifyEmail(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).SendString("Token faltante")
 	}
 
-  // new
 	tokenByte, err := jwt.Parse(tokenString, func(jwtToken *jwt.Token) (interface{}, error) {
 		if _, ok := jwtToken.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %s", jwtToken.Header["alg"])
@@ -143,22 +147,16 @@ func VerifyEmail(c *fiber.Ctx) error {
 
 	}
 
-
-  // end new
-
 	db := database.DB
 	var user models.User
 
 	if err := db.First(&user, "id = ?", fmt.Sprint(claims["sub"])).Error; err != nil {
 		return c.Status(404).JSON(err)
 	}
-fmt.Printf("El tipo de dato de user.ID es: %T\n", user.ID)
-    fmt.Printf("El tipo de dato de claims[\"sub\"] es: %T\n", claims["sub"])
 
 	if float64(user.ID) != claims["sub"] {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"status": "fail", "message": "the user belonging to this token no logger exists"})
 	}
-
 
   user.Verified = new(bool)
   *user.Verified = true
@@ -173,13 +171,62 @@ fmt.Printf("El tipo de dato de user.ID es: %T\n", user.ID)
 }
 
 func SignIn(c *fiber.Ctx) error {
-  // instancia db
-  // check si el usuario esta activado si no mostrar error 
-  // Agarar input desde formulrio
-  // desencriptar password
-  // si ok crear token
-  // retornar html a profile route
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"status": "success"})
+
+	time.Sleep(2 * time.Second)
+
+	email := c.FormValue("email")
+	password := c.FormValue("password")
+
+	if email == "" || password == "" {
+		return c.Status(fiber.StatusBadRequest).SendString("Missing name, email or password")
+	}
+
+  var user models.User
+
+  db := database.DB
+
+	result := db.First(&user, "email = ?", strings.ToLower(email))
+	if result.Error != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "message": "Invalid email or Password"})
+	}
+
+	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "message": "Invalid email or Password"})
+	}
+
+	if *user.Verified == false {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "fail", "message": "Account not verificada"})
+	}
+
+	tokenByte := jwt.New(jwt.SigningMethodHS256)
+
+	now := time.Now().UTC()
+	claims := tokenByte.Claims.(jwt.MapClaims)
+  expDuration := time.Hour * 24
+
+  claims["sub"] = user.ID
+  claims["exp"] = now.Add(expDuration).Unix()
+  claims["iat"] = now.Unix()
+  claims["nbf"] = now.Unix()
+
+	tokenString, err := tokenByte.SignedString([]byte(config.Config("JWT_SECRET")))
+
+	if err != nil {
+		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"status": "fail", "message": fmt.Sprintf("generating JWT Token failed: %v", err)})
+	}
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "token",
+		Value:    tokenString,
+		Path:     "/",
+		MaxAge:   60 * 60,
+		Secure:   false,
+		HTTPOnly: true,
+		Domain:   "localhost",
+	})
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success", "token": tokenString})
 }
 
 func SignInGitHub(c *fiber.Ctx) error {
