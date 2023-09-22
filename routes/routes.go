@@ -2,6 +2,7 @@ package routes
 
 import (
 	"github.com/agustfricke/super-auth-go/handlers"
+	"github.com/agustfricke/super-auth-go/middleware"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -13,6 +14,9 @@ func Routes(app *fiber.App) {
   app.Get("/:token", handlers.VerifyEmail)
 	app.Post("/signin/google", handlers.SignInGitHub)
 	app.Post("/signin/github", handlers.SignInGoogle)
+
+  app.Get("/:token", handlers.VerifyEmail)
+	app.Get("/users/me", middleware.Auth, handlers.Home)
 }
 
 
