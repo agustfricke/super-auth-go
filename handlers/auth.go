@@ -26,7 +26,7 @@ func SendEmail(token string, email string) {
 		"smtp.gmail.com",
 	)
 
-	tmpl, err := template.ParseFiles("/templates/email_template.html")
+	tmpl, err := template.ParseFiles("templates/verify_email.html")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -63,6 +63,10 @@ func SendEmail(token string, email string) {
 	if err != nil {
 		fmt.Println(err)
 	}
+}
+
+func SignUpForm(c *fiber.Ctx) error {
+  return c.Render("signup_form", fiber.Map{})
 }
 
 
@@ -105,16 +109,6 @@ func SignUp(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"status": "fail", "message": fmt.Sprintf("generating JWT Token failed: %v", err)})
 	}
-
-	c.Cookie(&fiber.Cookie{
-		Name:     "token",
-		Value:    tokenString,
-		Path:     "/",
-		MaxAge:   60 * 60,
-		Secure:   false,
-		HTTPOnly: true,
-		Domain:   "localhost",
-	})
 
   SendEmail(tokenString, email)
 
