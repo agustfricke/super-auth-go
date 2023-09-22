@@ -7,7 +7,6 @@ import (
 	"net/smtp"
 	"time"
 
-	"github.com/golang-jwt/jwt"
 	"github.com/dgrijalva/jwt-go"
 
 	"github.com/agustfricke/super-auth-go/config"
@@ -99,11 +98,12 @@ func SignUp(c *fiber.Ctx) error {
 
 	now := time.Now().UTC()
 	claims := tokenByte.Claims.(jwt.MapClaims)
+expDuration := time.Hour * 24
 
-	claims["sub"] = user.ID
-	claims["exp"] = now.Add(30).Unix()
-	claims["iat"] = now.Unix()
-	claims["nbf"] = now.Unix()
+claims["sub"] = user.ID
+claims["exp"] = now.Add(expDuration).Unix()
+claims["iat"] = now.Unix()
+claims["nbf"] = now.Unix()
 
 	tokenString, err := tokenByte.SignedString([]byte(config.Config("JWT_SECRET")))
 
@@ -122,36 +122,43 @@ func VerifyEmail(c *fiber.Ctx) error {
 	tokenString := c.Params("token")
 
 	if tokenString == "" {
-		return c.Status(fiber.StatusBadRequest).SendString("Token o ID faltante")
+		return c.Status(fiber.StatusBadRequest).SendString("Token faltante")
 	}
 
-	tokenKey := []byte(config.Config("JWT_SECRET"))
-	claims := jwt.MapClaims{}
-
-	_, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		return tokenKey, nil
-	})
-
-	if err != nil {
-		if err == jwt.ErrSignatureInvalid {
-			return c.Status(fiber.StatusUnauthorized).SendString("Token JWT no válido")
+  // new
+	tokenByte, err := jwt.Parse(tokenString, func(jwtToken *jwt.Token) (interface{}, error) {
+		if _, ok := jwtToken.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %s", jwtToken.Header["alg"])
 		}
-		return c.Status(fiber.StatusBadRequest).SendString("Token JWT no válido")
+
+		return []byte(config.Config("JWT_SECRET")), nil
+	})
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "fail", "message": fmt.Sprintf("invalidate token: %v", err)})
 	}
 
-	userID, ok := claims["sub"].(float64)
-	if !ok {
-		return c.Status(fiber.StatusBadRequest).SendString("ID de usuario no encontrado en el token")
+	claims, ok := tokenByte.Claims.(jwt.MapClaims)
+	if !ok || !tokenByte.Valid {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "fail", "message": "invalid token claim"})
+
 	}
 
-  fmt.Println(userID)
+
+  // end new
 
 	db := database.DB
 	var user models.User
 
-	if err := db.First(&user, userID).Error; err != nil {
+	if err := db.First(&user, "id = ?", fmt.Sprint(claims["sub"])).Error; err != nil {
 		return c.Status(404).JSON(err)
 	}
+fmt.Printf("El tipo de dato de user.ID es: %T\n", user.ID)
+    fmt.Printf("El tipo de dato de claims[\"sub\"] es: %T\n", claims["sub"])
+
+	if float64(user.ID) != claims["sub"] {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"status": "fail", "message": "the user belonging to this token no logger exists"})
+	}
+
 
   user.Verified = new(bool)
   *user.Verified = true
