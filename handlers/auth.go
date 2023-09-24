@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt"
 
 	"github.com/agustfricke/super-auth-go/config"
 	"github.com/agustfricke/super-auth-go/database"
@@ -118,8 +118,9 @@ func SignUp(c *fiber.Ctx) error {
 
   SendEmail(tokenString, email)
 
+  // Render mensaje de que se envio un correo para verificarlo
   return c.Render("verify", fiber.Map{
-      "user":    user,
+      "Email":    email,
   })
 }
 
@@ -164,10 +165,9 @@ func VerifyEmail(c *fiber.Ctx) error {
 	if err := db.Save(&user).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString("Error al guardar los cambios en el usuario")
 	}
-
-	return c.Render("success_verify", fiber.Map{
-    "user": user,
-  })
+  
+  // Mensaje de email verificado
+	return c.Render("success_verify", fiber.Map{})
 }
 
 func SignIn(c *fiber.Ctx) error {
@@ -226,7 +226,18 @@ func SignIn(c *fiber.Ctx) error {
 		Domain:   "localhost",
 	})
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success", "token": tokenString})
+	return c.Render("home", fiber.Map{})
+}
+
+func LogoutUser(c *fiber.Ctx) error {
+	expired := time.Now().Add(-time.Hour * 24)
+  fmt.Println(expired)
+	c.Cookie(&fiber.Cookie{
+		Name:    "token",
+		Value:   "",
+		Expires: expired,
+	})
+	return c.Render("home", fiber.Map{})
 }
 
 func SignInGitHub(c *fiber.Ctx) error {
@@ -238,3 +249,4 @@ func SignInGoogle(c *fiber.Ctx) error {
   // callback check si exite, si no, crearlo
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"status": "success"})
 }
+

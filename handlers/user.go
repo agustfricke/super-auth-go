@@ -5,9 +5,13 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-
 func Home(c *fiber.Ctx) error {
-	user := c.Locals("user").(*models.User)
+	return c.Render("home", fiber.Map{})
+}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success", "data": fiber.Map{"user": user}})
+func User(c *fiber.Ctx) error {
+	user := c.Locals("user").(*models.User)
+	return c.Render("profile", fiber.Map{
+    "User": user,
+  })
 }

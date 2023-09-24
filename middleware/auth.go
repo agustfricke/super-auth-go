@@ -33,8 +33,10 @@ func Auth(c *fiber.Ctx) error {
 		return []byte(config.Config("JWT_SECRET")), nil
 	})
 
+  fmt.Println("FOo",tokenByte)
+
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "fail", "message": fmt.Sprintf("invalidate token: %v", err)})
+    return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "fail", "message": fmt.Sprintf("invalidate token: %v", err), "token":tokenByte})
 	}
 
 	claims, ok := tokenByte.Claims.(jwt.MapClaims)
