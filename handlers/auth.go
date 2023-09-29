@@ -8,7 +8,7 @@ import (
 	"github.com/agustfricke/super-auth-go/config"
 	"github.com/agustfricke/super-auth-go/database"
 	"github.com/agustfricke/super-auth-go/models"
-	"github.com/gofiber/fiber"
+	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
 	"github.com/pquerna/otp/totp"
 	"golang.org/x/crypto/bcrypt"
@@ -119,7 +119,7 @@ func SignIn(c *fiber.Ctx) error {
 		Name:     "token",
 		Value:    tokenString,
 		Path:     "/",
-		MaxAge:   60 * 60,
+		MaxAge:   24 * 60 * 60,
 		Secure:   false,
 		HTTPOnly: true,
 		Domain:   "localhost",

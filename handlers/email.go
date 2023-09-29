@@ -9,7 +9,6 @@ import (
 	"github.com/agustfricke/super-auth-go/config"
 	"github.com/agustfricke/super-auth-go/database"
 	"github.com/agustfricke/super-auth-go/models"
-	"github.com/gofiber/fiber"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
 )
