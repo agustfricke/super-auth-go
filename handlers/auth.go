@@ -82,6 +82,10 @@ func SignIn(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "message": "Invalid email or Password"})
 	}
 
+  if !user.Verified {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"status": "fail", "message": "No estas verificado bro!"})
+  }
+
 	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(payload.Password))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "message": "Invalid email or Password"})
