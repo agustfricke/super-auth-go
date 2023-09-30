@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/agustfricke/super-auth-go/config"
@@ -85,6 +86,51 @@ func CallbackGitHub(c *fiber.Ctx) error {
   
   githubResponse := socials.GetGitHubResponse(token.AccessToken)
 
-  return c.JSON(githubResponse)
+  db := database.DB 
+  var user models.User
+
+  if err := db.First(&user, githubResponse.ID).Error; err != nil {
+    user = models.User{
+      SocialID:       strconv.Itoa(githubResponse.ID),
+      Email:          githubResponse.Email,
+    }
+    db.Create(&user)
+    c.Status(fiber.StatusCreated).JSON(fiber.Map{"status": "created", "user created": user, "google res": githubResponse})
+  } else {
+    c.Status(fiber.StatusFound).JSON(fiber.Map{"status": "found", "user in db": user, "google res": githubResponse})
+  }
+
+  tokenByte := jwt.New(jwt.SigningMethodHS256)
+
+  now := time.Now().UTC()
+  claims := tokenByte.Claims.(jwt.MapClaims)
+  expDuration := time.Hour * 24
+
+  claims["sub"] = user.ID
+  claims["exp"] = now.Add(expDuration).Unix()
+  claims["iat"] = now.Unix()
+  claims["nbf"] = now.Unix()
+
+  tokenString, err := tokenByte.SignedString([]byte(config.Config("SECRET_KEY")))
+
+  if err != nil {
+    return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"status": "fail", "message": fmt.Sprintf("generating JWT Token failed: %v", err)})
+  }
+
+  c.Cookie(&fiber.Cookie{
+    Name:     "token",
+    Value:    tokenString,
+    Path:     "/",
+    MaxAge:   24 * 60 * 60,
+    Secure:   false,
+    HTTPOnly: true,
+    Domain:   "localhost",
+  })
+
+  return c.Status(fiber.StatusOK).JSON(fiber.Map{
+    "status": "success", 
+    "token": tokenString, 
+    "user": user, 
+    "github_user": githubResponse})
 }
 
