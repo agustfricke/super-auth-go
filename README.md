@@ -55,3 +55,7 @@ curl -X POST -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJl
 ### Google auth
 
 <a href="http://127.0.0.1:8080/auth/google">go to this link</a>
+
+### GitHub auth
+
+<a href="http://127.0.0.1:8080/auth/github">go to this link</a>
