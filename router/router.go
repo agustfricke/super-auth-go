@@ -8,17 +8,17 @@ import (
 
 func SetupRoutes(app *fiber.App) {
   // Basic auth 
-  app.Post("/signup", handlers.SignUp) // tested OK
-  app.Post("/signin", handlers.SignIn) // tested OK
-  app.Get("/logout", handlers.Logout) // tested OK
+  app.Post("/signup", handlers.SignUp) 
+  app.Post("/signin", handlers.SignIn) 
+  app.Get("/logout", handlers.Logout)
   // OTP
-  app.Post("/generate", middleware.DeserializeUser, handlers.GenerateOTP) // tested OK
-  app.Post("/verify", middleware.DeserializeUser, handlers.VerifyOTP) // tested OK
-  app.Post("/disable", middleware.DeserializeUser, handlers.DisableOTP) // tested OK
+  app.Post("/generate", middleware.DeserializeUser, handlers.GenerateOTP)
+  app.Post("/verify", middleware.DeserializeUser, handlers.VerifyOTP)
+  app.Post("/disable", middleware.DeserializeUser, handlers.DisableOTP) 
   // Email
-	app.Get("/verify/:token", handlers.VerifyEmail) // tested OK
+	app.Get("/verify/:token", handlers.VerifyEmail)
   // Google auth
-	app.Get("/auth/google", handlers.AuthGoogle) // tested OK
+	app.Get("/auth/google", handlers.AuthGoogle)
 	app.Get("/auth/google/callback", handlers.CallbackGoogle) 
   // GitHub auth
   app.Get("/auth/github", handlers.AuthGitHub)

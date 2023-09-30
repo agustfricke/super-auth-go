@@ -23,6 +23,7 @@ func CallbackGoogle(c *fiber.Ctx) error {
   if error != nil {
     panic(error)
   }
+
   googleResponse := socials.GetGoogleResponse(token.AccessToken)
 
   db := database.DB 
@@ -70,10 +71,20 @@ func CallbackGoogle(c *fiber.Ctx) error {
 }
 
 func AuthGitHub(c *fiber.Ctx) error {
-  return c.Status(200).JSON(fiber.Map{"state": "success"})
+	path := socials.ConfigGitHub()
+	url := path.AuthCodeURL("state")
+	return c.Redirect(url)
 }
 
 func CallbackGitHub(c *fiber.Ctx) error {
-	return c.Status(200).JSON(fiber.Map{"state": "success"})
+
+  token, error := socials.ConfigGitHub().Exchange(c.Context(), c.FormValue("code"))
+  if error != nil {
+    panic(error)
+  }
+  
+  githubResponse := socials.GetGitHubResponse(token.AccessToken)
+
+  return c.JSON(githubResponse)
 }
 
